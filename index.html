@@ -73,6 +73,8 @@ tr:nth-child(even) {
             <th>Category</th>
             <th>Best Season</th>
             <th onclick="sortByRating()">Rating ⬍</th>
+            <th>Weather</th>
+            <th>Travel Advice</th>
         </tr>
     </thead>
     <tbody id="tableBody"></tbody>
@@ -80,6 +82,103 @@ tr:nth-child(even) {
 
 <script>
 document.addEventListener("DOMContentLoaded", () => {
+    const WEATHER_API_KEY = "5989bfd5387805e4603d064014e6032f";
+
+const cityMap = {
+    // Gilgit-Baltistan
+    "Karimabad": "Hunza",
+    "Hunza": "Hunza",
+    "Skardu": "Skardu",
+    "Naltar": "Gilgit",
+    "Nagar": "Gilgit",
+    "Gojal": "Hunza",
+    "Diamer": "Chilas",
+
+    // Khyber Pakhtunkhwa
+    "Mingora": "Mingora",
+    "Swat": "Mingora",
+    "Naran": "Naran",
+    "Kaghan Valley": "Naran",
+    "Kalam": "Kalam",
+    "Chitral": "Chitral",
+    "Haripur": "Haripur",
+    "Abbottabad": "Abbottabad",
+    "Mardan": "Mardan",
+    "Peshawar": "Peshawar",
+
+    // Punjab
+    "Lahore": "Lahore",
+    "Jhelum": "Jhelum",
+    "Chakwal": "Chakwal",
+    "Sheikhupura": "Sheikhupura",
+    "Bahawalpur": "Bahawalpur",
+    "Taxila": "Taxila",
+    "Murree": "Murree",
+
+    // Sindh
+    "Larkana": "Larkana",
+    "Thatta": "Thatta",
+
+    // Balochistan
+    "Ziarat": "Ziarat",
+
+    // Islamabad
+    "Islamabad": "Islamabad"
+};
+
+const weatherCache = {};
+
+    const coordFallback = {
+    "Karimabad": { lat: 36.3167, lon: 74.6500 },
+    "Hunza": { lat: 36.3167, lon: 74.6500 },
+    "Gojal": { lat: 36.6000, lon: 74.8500 },
+    "Naran": { lat: 34.9093, lon: 73.6500 },
+    "Kaghan Valley": { lat: 34.9100, lon: 73.6500 }
+};
+
+async function getWeather(city) {
+
+    const apiCity = cityMap[city] || city;
+
+    // ✅ Use cache if already fetched
+    if (weatherCache[apiCity]) {
+        return weatherCache[apiCity];
+    }
+
+    try {
+        const response = await fetch(
+            `https://api.openweathermap.org/data/2.5/weather?q=${apiCity},PK&units=metric&appid=${WEATHER_API_KEY}`
+        );
+
+        const data = await response.json();
+
+        if (!data.main) {
+            return { weather: "N/A", advice: "Unknown" };
+        }
+
+        const temp = data.main.temp;
+        const condition = data.weather[0].main;
+
+        let advice = "✅ Good to Visit";
+        if (condition.includes("Rain")) advice = "⚠ Rain – Travel Carefully";
+        if (condition.includes("Snow")) advice = "❄ Snowfall – Avoid Roads";
+        if (temp > 40) advice = "🔥 Extreme Heat – Avoid Visit";
+        if (temp < 0) advice = "🥶 Extreme Cold – Avoid Visit";
+
+        const result = {
+            weather: `${condition}, ${temp.toFixed(1)}°C`,
+            advice
+        };
+
+        // ✅ Save to cache
+        weatherCache[apiCity] = result;
+
+        return result;
+
+    } catch (error) {
+        return { weather: "Unavailable", advice: "Unknown" };
+    }
+}
 
     let tourismData = [];
     let currentData = [];
@@ -104,7 +203,7 @@ document.addEventListener("DOMContentLoaded", () => {
         })
         .catch(err => {
             tableBody.innerHTML =
-                `<tr><td colspan="6">❌ Failed to load CSV file</td></tr>`;
+                `<tr><td colspan="8">❌ Failed to load CSV file</td></tr>`;
             console.error(err);
         });
 
@@ -123,23 +222,31 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    function renderTable(data) {
+    async function renderTable(data) {
         tableBody.innerHTML = "";
+
         if (data.length === 0) {
             tableBody.innerHTML =
-                `<tr><td colspan="6">No results found</td></tr>`;
+                `<tr><td colspan="8">No results found</td></tr>`;
             return;
         }
-        tableBody.innerHTML = data.map(item => `
-            <tr>
+
+        for (const item of data) {
+            const weatherData = await getWeather(item.city);
+
+            const row = document.createElement("tr");
+            row.innerHTML = `
                 <td>${item.place}</td>
                 <td>${item.city}</td>
                 <td>${item.province}</td>
                 <td>${item.category}</td>
                 <td>${item.season}</td>
                 <td class="rating">${item.rating}</td>
-            </tr>
-        `).join("");
+                <td>${weatherData.weather}</td>
+                <td>${weatherData.advice}</td>
+            `;
+            tableBody.appendChild(row);
+        }
     }
 
     function populateFilters(data) {
