@@ -140,17 +140,24 @@ async function getWeather(city) {
 
     const apiCity = cityMap[city] || city;
 
-    // ✅ Use cache if already fetched
-    if (weatherCache[apiCity]) {
-        return weatherCache[apiCity];
-    }
-
     try {
-        const response = await fetch(
+        // 🔹 Try city-based fetch first
+        let response = await fetch(
             `https://api.openweathermap.org/data/2.5/weather?q=${apiCity},PK&units=metric&appid=${WEATHER_API_KEY}`
         );
 
-        const data = await response.json();
+        let data = await response.json();
+
+        // 🔁 If city fails, use coordinates
+        if (!data.main && coordFallback[city]) {
+            const { lat, lon } = coordFallback[city];
+
+            response = await fetch(
+                `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${WEATHER_API_KEY}`
+            );
+
+            data = await response.json();
+        }
 
         if (!data.main) {
             return { weather: "N/A", advice: "Unknown" };
@@ -162,20 +169,14 @@ async function getWeather(city) {
         let advice = "✅ Good to Visit";
         if (condition.includes("Rain")) advice = "⚠ Rain – Travel Carefully";
         if (condition.includes("Snow")) advice = "❄ Snowfall – Avoid Roads";
-        if (temp > 40) advice = "🔥 Extreme Heat – Avoid Visit";
         if (temp < 0) advice = "🥶 Extreme Cold – Avoid Visit";
-
-        const result = {
+        if (temp > 40) advice = "🔥 Extreme Heat – Avoid Visit";
+        return {
             weather: `${condition}, ${temp.toFixed(1)}°C`,
             advice
         };
 
-        // ✅ Save to cache
-        weatherCache[apiCity] = result;
-
-        return result;
-
-    } catch (error) {
+    } catch {
         return { weather: "Unavailable", advice: "Unknown" };
     }
 }
