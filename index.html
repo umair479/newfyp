@@ -9,47 +9,119 @@
 
 <style>
 body {
-    font-family: Arial, sans-serif;
-    background: #f4f6f9;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f0f2f5;
+    color: #333;
+    margin: 0;
     padding: 20px;
 }
 h1 {
     text-align: center;
-    color: #2c3e50;
-    margin-bottom: 20px;
+    color: #005a78;
+    margin-bottom: 30px;
+    font-size: 2.5em;
+    font-weight: 600;
 }
 .controls {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 12px;
-    margin-bottom: 20px;
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    margin-bottom: 30px;
+    flex-wrap: wrap;
 }
 input, select {
-    padding: 12px;
-    border-radius: 6px;
-    border: 1px solid #ccc;
-    font-size: 15px;
+    padding: 12px 15px;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    font-size: 16px;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+input:focus, select:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 8px rgba(0,123,255,0.2);
 }
 table {
     width: 100%;
     border-collapse: collapse;
     background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
 }
 th, td {
-    padding: 12px;
-    border: 1px solid #ddd;
+    padding: 15px;
+    border-bottom: 1px solid #eee;
+    text-align: left;
 }
 th {
-    background: #34495e;
+    background: linear-gradient(to right, #005a78, #007bff);
     color: white;
+    font-weight: 600;
     cursor: pointer;
+    text-transform: uppercase;
+    font-size: 14px;
 }
 tr:nth-child(even) {
-    background: #f2f2f2;
+    background-color: #f9f9f9;
+}
+tr:hover {
+    background-color: #f1f1f1;
 }
 .rating {
     font-weight: bold;
-    color: #e67e22;
+    color: #ff9800;
+    font-size: 1.1em;
+}
+
+/* Card View Styles */
+.card-view {
+    display: none;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+}
+.card {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    padding: 20px;
+    transition: all 0.3s ease;
+}
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 15px rgba(0,0,0,0.15);
+}
+.card h3 {
+    margin: 0 0 10px;
+    color: #005a78;
+}
+.card p {
+    margin: 5px 0;
+    font-size: 14px;
+}
+.card .rating {
+    font-size: 1.2em;
+}
+
+/* View Switcher */
+.view-switcher {
+    text-align: center;
+    margin-bottom: 20px;
+}
+.view-switcher button {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    margin: 0 5px;
+    transition: background-color 0.3s;
+}
+.view-switcher button.active {
+    background-color: #005a78;
 }
 </style>
 </head>
@@ -63,6 +135,13 @@ tr:nth-child(even) {
     <select id="provinceFilter"></select>
     <select id="seasonFilter"></select>
 </div>
+
+<div class="view-switcher">
+    <button id="tableViewBtn" class="active">Table View</button>
+    <button id="cardViewBtn">Card View</button>
+</div>
+
+<div id="cardView" class="card-view"></div>
 
 <table>
     <thead>
@@ -84,111 +163,132 @@ tr:nth-child(even) {
 document.addEventListener("DOMContentLoaded", () => {
     const WEATHER_API_KEY = "5989bfd5387805e4603d064014e6032f";
 
-const cityMap = {
-    // Gilgit-Baltistan
-    "Karimabad": "Hunza",
-    "Hunza": "Hunza",
-    "Skardu": "Skardu",
-    "Naltar": "Gilgit",
-    "Nagar": "Gilgit",
-    "Gojal": "Hunza",
-    "Diamer": "Chilas",
+    const cityMap = {
+        // Gilgit-Baltistan
+        "Karimabad": "Hunza",
+        "Hunza": "Hunza",
+        "Skardu": "Skardu",
+        "Naltar": "Gilgit",
+        "Nagar": "Gilgit",
+        "Gojal": "Hunza",
+        "Diamer": "Chilas",
 
-    // Khyber Pakhtunkhwa
-    "Mingora": "Mingora",
-    "Swat": "Mingora",
-    "Naran": "Naran",
-    "Kaghan Valley": "Naran",
-    "Kalam": "Kalam",
-    "Chitral": "Chitral",
-    "Haripur": "Haripur",
-    "Abbottabad": "Abbottabad",
-    "Mardan": "Mardan",
-    "Peshawar": "Peshawar",
+        // Khyber Pakhtunkhwa
+        "Mingora": "Mingora",
+        "Swat": "Mingora",
+        "Naran": "Naran",
+        "Kaghan Valley": "Naran",
+        "Kalam": "Kalam",
+        "Chitral": "Chitral",
+        "Haripur": "Haripur",
+        "Abbottabad": "Abbottabad",
+        "Mardan": "Mardan",
+        "Peshawar": "Peshawar",
 
-    // Punjab
-    "Lahore": "Lahore",
-    "Jhelum": "Jhelum",
-    "Chakwal": "Chakwal",
-    "Sheikhupura": "Sheikhupura",
-    "Bahawalpur": "Bahawalpur",
-    "Taxila": "Taxila",
-    "Murree": "Murree",
+        // Punjab
+        "Lahore": "Lahore",
+        "Jhelum": "Jhelum",
+        "Chakwal": "Chakwal",
+        "Sheikhupura": "Sheikhupura",
+        "Bahawalpur": "Bahawalpur",
+        "Taxila": "Taxila",
+        "Murree": "Murree",
 
-    // Sindh
-    "Larkana": "Larkana",
-    "Thatta": "Thatta",
+        // Sindh
+        "Larkana": "Larkana",
+        "Thatta": "Thatta",
 
-    // Balochistan
-    "Ziarat": "Ziarat",
+        // Balochistan
+        "Ziarat": "Ziarat",
 
-    // Islamabad
-    "Islamabad": "Islamabad"
-};
+        // Islamabad
+        "Islamabad": "Islamabad"
+    };
 
-const weatherCache = {};
+    const weatherCache = {};
 
     const coordFallback = {
-    "Karimabad": { lat: 36.3167, lon: 74.6500 },
-    "Hunza": { lat: 36.3167, lon: 74.6500 },
-    "Gojal": { lat: 36.6000, lon: 74.8500 },
-    "Naran": { lat: 34.9093, lon: 73.6500 },
-    "Kaghan Valley": { lat: 34.9100, lon: 73.6500 }
-};
+        "Karimabad": { lat: 36.3167, lon: 74.6500 },
+        "Hunza": { lat: 36.3167, lon: 74.6500 },
+        "Gojal": { lat: 36.6000, lon: 74.8500 },
+        "Naran": { lat: 34.9093, lon: 73.6500 },
+        "Kaghan Valley": { lat: 34.9100, lon: 73.6500 }
+    };
 
-async function getWeather(city) {
+    async function getWeather(city) {
+        const apiCity = cityMap[city] || city;
 
-    const apiCity = cityMap[city] || city;
-
-    try {
-        // 🔹 Try city-based fetch first
-        let response = await fetch(
-            `https://api.openweathermap.org/data/2.5/weather?q=${apiCity},PK&units=metric&appid=${WEATHER_API_KEY}`
-        );
-
-        let data = await response.json();
-
-        // 🔁 If city fails, use coordinates
-        if (!data.main && coordFallback[city]) {
-            const { lat, lon } = coordFallback[city];
-
-            response = await fetch(
-                `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${WEATHER_API_KEY}`
+        try {
+            let response = await fetch(
+                `https://api.openweathermap.org/data/2.5/weather?q=${apiCity},PK&units=metric&appid=${WEATHER_API_KEY}`
             );
+            let data = await response.json();
 
-            data = await response.json();
+            if (!data.main && coordFallback[city]) {
+                const { lat, lon } = coordFallback[city];
+                response = await fetch(
+                    `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${WEATHER_API_KEY}`
+                );
+                data = await response.json();
+            }
+
+            if (!data.main) {
+                return { weather: "N/A", advice: "Unknown" };
+            }
+
+            const temp = data.main.temp;
+            const condition = data.weather[0].main;
+
+            let advice = " Good to Visit";
+            if (condition.includes("Rain")) advice = "⚠ Rain – Travel Carefully";
+            if (condition.includes("Snow")) advice = "❄ Snowfall – Avoid Roads";
+            if (temp < 0) advice = "🥶 Extreme Cold – Avoid Visit";
+            if (temp > 40) advice = "🔥 Extreme Heat – Avoid Visit";
+            return {
+                weather: `${condition}, ${temp.toFixed(1)}°C`,
+                advice
+            };
+        } catch {
+            return { weather: "Unavailable", advice: "Unknown" };
         }
-
-        if (!data.main) {
-            return { weather: "N/A", advice: "Unknown" };
-        }
-
-        const temp = data.main.temp;
-        const condition = data.weather[0].main;
-
-        let advice = "✅ Good to Visit";
-        if (condition.includes("Rain")) advice = "⚠ Rain – Travel Carefully";
-        if (condition.includes("Snow")) advice = "❄ Snowfall – Avoid Roads";
-        if (temp < 0) advice = "🥶 Extreme Cold – Avoid Visit";
-        if (temp > 40) advice = "🔥 Extreme Heat – Avoid Visit";
-        return {
-            weather: `${condition}, ${temp.toFixed(1)}°C`,
-            advice
-        };
-
-    } catch {
-        return { weather: "Unavailable", advice: "Unknown" };
     }
-}
 
     let tourismData = [];
     let currentData = [];
     let sortAscending = true;
+    let currentView = 'table'; // 'table' or 'card'
 
     const searchInput = document.getElementById("searchInput");
     const provinceFilter = document.getElementById("provinceFilter");
     const seasonFilter = document.getElementById("seasonFilter");
     const tableBody = document.getElementById("tableBody");
+    const cardView = document.getElementById("cardView");
+    const tableViewBtn = document.getElementById("tableViewBtn");
+    const cardViewBtn = document.getElementById("cardViewBtn");
+    const tableElement = document.querySelector("table");
+
+    // View switcher logic
+    tableViewBtn.addEventListener('click', () => {
+        if (currentView !== 'table') {
+            currentView = 'table';
+            tableViewBtn.classList.add('active');
+            cardViewBtn.classList.remove('active');
+            tableElement.style.display = '';
+            cardView.style.display = 'none';
+            render();
+        }
+    });
+
+    cardViewBtn.addEventListener('click', () => {
+        if (currentView !== 'card') {
+            currentView = 'card';
+            cardViewBtn.classList.add('active');
+            tableViewBtn.classList.remove('active');
+            tableElement.style.display = 'none';
+            cardView.style.display = 'grid';
+            render();
+        }
+    });
 
     // ✅ LOAD CSV FILE
     fetch("places_dataset.csv")
@@ -200,11 +300,14 @@ async function getWeather(city) {
             tourismData = parseCSV(csvText);
             currentData = [...tourismData];
             populateFilters(tourismData);
-            renderTable(currentData);
+            render();
         })
         .catch(err => {
-            tableBody.innerHTML =
-                `<tr><td colspan="8">❌ Failed to load CSV file</td></tr>`;
+            if (currentView === 'table') {
+                tableBody.innerHTML = `<tr><td colspan="8">❌ Failed to load CSV file</td></tr>`;
+            } else {
+                cardView.innerHTML = `<p>❌ Failed to load CSV file</p>`;
+            }
             console.error(err);
         });
 
@@ -223,18 +326,23 @@ async function getWeather(city) {
         });
     }
 
+    function render() {
+        if (currentView === 'table') {
+            renderTable(currentData);
+        } else {
+            renderCardView(currentData);
+        }
+    }
+
     async function renderTable(data) {
         tableBody.innerHTML = "";
-
         if (data.length === 0) {
-            tableBody.innerHTML =
-                `<tr><td colspan="8">No results found</td></tr>`;
+            tableBody.innerHTML = `<tr><td colspan="8">No results found</td></tr>`;
             return;
         }
 
         for (const item of data) {
             const weatherData = await getWeather(item.city);
-
             const row = document.createElement("tr");
             row.innerHTML = `
                 <td>${item.place}</td>
@@ -247,6 +355,31 @@ async function getWeather(city) {
                 <td>${weatherData.advice}</td>
             `;
             tableBody.appendChild(row);
+        }
+    }
+
+    async function renderCardView(data) {
+        cardView.innerHTML = "";
+        if (data.length === 0) {
+            cardView.innerHTML = `<p>No results found</p>`;
+            return;
+        }
+
+        for (const item of data) {
+            const weatherData = await getWeather(item.city);
+            const card = document.createElement("div");
+            card.className = "card";
+            card.innerHTML = `
+                <h3>${item.place}</h3>
+                <p><strong>City:</strong> ${item.city}</p>
+                <p><strong>Province:</strong> ${item.province}</p>
+                <p><strong>Category:</strong> ${item.category}</p>
+                <p><strong>Best Season:</strong> ${item.season}</p>
+                <p class="rating"><strong>Rating:</strong> ${item.rating}</p>
+                <p><strong>Weather:</strong> ${weatherData.weather}</p>
+                <p><strong>Advice:</strong> ${weatherData.advice}</p>
+            `;
+            cardView.appendChild(card);
         }
     }
 
@@ -273,8 +406,7 @@ async function getWeather(city) {
             (province === "" || item.province === province) &&
             (season === "" || item.season === season)
         );
-
-        renderTable(currentData);
+        render();
     }
 
     window.sortByRating = () => {
@@ -282,7 +414,7 @@ async function getWeather(city) {
         currentData.sort((a, b) =>
             sortAscending ? a.rating - b.rating : b.rating - a.rating
         );
-        renderTable(currentData);
+        render();
     };
 
     searchInput.addEventListener("input", filterAndRender);
