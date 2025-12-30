@@ -3,7 +3,7 @@
 <head>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <meta charset="UTF-8">
-<title>PK Pakistan Tourism Guide</title>
+<title>Pakistan Tourism Guide</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 
@@ -376,6 +376,17 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
+    function removeDuplicates(data) {
+        const seen = new Set();
+
+        return data.filter(item => {
+            const key = `${item.place}-${item.city}-${item.province}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        });
+    }
+
     // ✅ LOAD CSV FILE
     fetch("places_dataset.csv")
         .then(res => {
@@ -383,7 +394,7 @@ document.addEventListener("DOMContentLoaded", () => {
             return res.text();
         })
         .then(csvText => {
-            tourismData = parseCSV(csvText);
+            tourismData = removeDuplicates(parseCSV(csvText));
             currentData = [...tourismData];
             populateFilters(tourismData);
             render();
@@ -398,18 +409,20 @@ document.addEventListener("DOMContentLoaded", () => {
         });
 
     function parseCSV(csv) {
-        const lines = csv.replace(/\r/g, "").trim().split("\n");
-        return lines.slice(1).map(line => {
-            const v = line.split(",").map(x => x.trim());
-            return {
-                place: v[0] || "",
-                city: v[1] || "",
-                province: v[2] || "",
-                category: v[3] || "",
-                season: v[4] || "",
-                rating: parseFloat(v[5]) || 0
-            };
-        });
+      const lines = csv.replace(/\r/g, "").trim().split("\n");
+
+      return lines.slice(1).map(line => {
+        const v = line.split(",").map(x => x.trim());
+
+        return {
+          place: (v[0] || "").trim(),
+          city: (v[1] || "").trim(),
+          province: (v[2] || "").trim(),
+          category: (v[3] || "").trim(),
+          season: (v[4] || "").trim(),
+          rating: parseFloat(v[5]) || 0
+        };
+      });
     }
 
     function render() {
@@ -481,17 +494,26 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function filterAndRender() {
-        const search = searchInput.value.toLowerCase();
+        const search = searchInput.value.trim().toLowerCase();
         const province = provinceFilter.value;
         const season = seasonFilter.value;
 
-        currentData = tourismData.filter(item =>
-            (item.place.toLowerCase().includes(search) ||
-             item.city.toLowerCase().includes(search) ||
-             item.category.toLowerCase().includes(search)) &&
+        currentData = tourismData.filter(item => {
+          const searchableText = `
+            ${item.place}
+            ${item.city}
+            ${item.province}
+            ${item.category}
+            ${item.season}
+          `.toLowerCase();
+
+          return (
+            searchableText.includes(search) &&
             (province === "" || item.province === province) &&
             (season === "" || item.season === season)
-        );
+          );
+        });
+
         render();
     }
 
