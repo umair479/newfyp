@@ -125,7 +125,7 @@ tr:hover {
     background-color: #005a78;
 }
 
-/* Header Section with Background Video */
+/* Card View Styles */
 #header-section {
     position: relative;
     padding: 20px 20px 40px 20px; /* Add more padding at the bottom */
@@ -380,7 +380,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const seen = new Set();
 
         return data.filter(item => {
-            const key = `${item.place}-${item.city}-${item.province}`;
+            const key = `${item.place}-${item.city}-${item.province}-${item.category}-${item.season}`;
             if (seen.has(key)) return false;
             seen.add(key);
             return true;
